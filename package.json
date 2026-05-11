@@ -1,0 +1,17 @@
+{
+  "name": "neon-blog",
+  "version": "1.0.0",
+  "description": "NEON_BLOG // 赛博空间 - Full Stack Blog",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3",
+    "sql.js": "^1.9.0"
+  }
+}

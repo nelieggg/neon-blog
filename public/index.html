@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEON_BLOG // 赛博空间</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="noise-overlay"></div>
+
+  <header class="top-nav">
+    <div class="nav-inner">
+      <div class="logo" data-text="NEON(BLOG)">NEON<span class="highlight">(</span>BLOG<span class="highlight">)</span></div>
+      <nav class="nav-links">
+        <a href="#home" class="nav-item active" data-route="home">
+          <span class="nav-icon">⌂</span>
+          <span class="nav-text">首页</span>
+          <span class="nav-glow"></span>
+        </a>
+        <a href="#projects" class="nav-item" data-route="projects">
+          <span class="nav-icon">⬡</span>
+          <span class="nav-text">项目</span>
+          <span class="nav-glow"></span>
+        </a>
+        <a href="#about" class="nav-item" data-route="about">
+          <span class="nav-icon">◈</span>
+          <span class="nav-text">关于</span>
+          <span class="nav-glow"></span>
+        </a>
+        <a href="#admin" class="nav-item" data-route="admin" id="adminNav" style="display:none">
+          <span class="nav-icon">⚙</span>
+          <span class="nav-text">管理</span>
+          <span class="nav-glow"></span>
+        </a>
+      </nav>
+      <div class="nav-actions">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="SEARCH_">
+          <button id="searchBtn" class="btn-neon">⌕</button>
+        </div>
+        <div class="user-area" id="userArea">
+          <a href="#" class="nav-item" id="loginBtn" data-action="login">
+            <span class="nav-icon">⛊</span>
+            <span class="nav-text">登录</span>
+          </a>
+          <div class="user-info" id="userInfo" style="display:none">
+            <span class="user-role-badge" id="userRoleBadge"></span>
+            <span class="user-name" id="userName"></span>
+            <button class="btn-neon logout-btn" id="logoutBtn" title="退出">⏏</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav-border"></div>
+  </header>
+
+  <div class="tag-bar" id="tagBar">
+    <span class="tag-label">FILTER://</span>
+    <div class="tag-list" id="tagList"></div>
+  </div>
+
+  <main id="mainContent" class="main-content">
+    <div class="page-loading">
+      <div class="loader-text">INITIALIZING_SYSTEM<span class="cursor-blink">█</span></div>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script type="module" src="js/api.js"></script>
+  <script type="module" src="js/transition.js"></script>
+  <script type="module" src="js/data.js"></script>
+  <script type="module" src="js/pages/home.js"></script>
+  <script type="module" src="js/pages/detail.js"></script>
+  <script type="module" src="js/pages/projects.js"></script>
+  <script type="module" src="js/pages/admin.js"></script>
+  <script type="module" src="js/pages/auth.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
