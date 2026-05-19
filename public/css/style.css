@@ -1408,6 +1408,36 @@ body {
 }
 
 /* ===========================
+   MARKDOWN TOOLBAR
+   =========================== */
+
+.md-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.md-btn {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  border-radius: 3px;
+  background: rgba(0, 255, 255, 0.04);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-speed);
+  font-weight: bold;
+}
+.md-btn:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.15);
+}
+
+/* ===========================
    USER AREA / AUTH
    =========================== */
 
