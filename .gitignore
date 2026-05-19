@@ -3,3 +3,4 @@ db/neondb.sqlite
 server.log
 test_full.js
 test_init.js
+public/uploads/

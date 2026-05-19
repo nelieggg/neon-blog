@@ -6,15 +6,13 @@ import { api } from '../api.js';
 
 let adminTab = 'articles';
 let articlesData = [];
-let projectsData = [];
 let editingArticle = null;
-let editingProject = null;
 let currentUser = null;
 
 export async function showAdmin(user) {
   currentUser = user;
   const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-loading"><div class="loader-text">LOADING_ADMIN_PANEL<span class="cursor-blink">█</span></div></div>';
+  main.innerHTML = '<div class="page-loading"><div class="loader-text">加载管理面板<span class="cursor-blink">█</span></div></div>';
 
   const [articles, projects] = await Promise.all([
     api.getArticles().catch(() => []),
@@ -32,14 +30,13 @@ function renderAdminLayout(user) {
 
   main.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">// ADMIN_PANEL</h1>
-      <p class="page-subtitle">sys.admin.level: ${isSuper ? 'SUPER_ADMIN (L1)' : 'ADMIN (L2)'}</p>
+      <h1 class="page-title">// 管理后台</h1>
+      <p class="page-subtitle">管理权限: ${isSuper ? '管理员(L1)' : '小编(L2)'}</p>
     </div>
     <div class="admin-layout">
       <div class="admin-sidebar">
         <button class="admin-nav-item ${adminTab === 'articles' ? 'active' : ''}" data-tab="articles">⬡ 文章管理</button>
         <button class="admin-nav-item ${adminTab === 'review' ? 'active' : ''}" data-tab="review">⏳ 审核队列</button>
-        <button class="admin-nav-item ${adminTab === 'projects' ? 'active' : ''}" data-tab="projects">⚙ 项目管理</button>
         <button class="admin-nav-item ${adminTab === 'invites' ? 'active' : ''}" data-tab="invites">🎫 邀请码</button>
         ${isSuper ? `<button class="admin-nav-item ${adminTab === 'createAdmin' ? 'active' : ''}" data-tab="createAdmin">👥 创建管理员</button>` : ''}
       </div>
@@ -57,7 +54,6 @@ function renderAdminLayout(user) {
   switch (adminTab) {
     case 'articles': renderArticleList(); break;
     case 'review': renderReviewQueue(); break;
-    case 'projects': renderProjectList(); break;
     case 'invites': renderInvitesTab(); break;
     case 'createAdmin': renderCreateAdminTab(user); break;
   }
@@ -85,8 +81,8 @@ function renderArticleList() {
             </div>
           </div>
           <div class="admin-list-actions">
-            <button class="admin-btn-sm" data-edit="${a.id}">EDIT</button>
-            <button class="admin-btn-sm danger" data-delete="${a.id}">DEL</button>
+            <button class="admin-btn-sm" data-edit="${a.id}">编辑</button>
+            <button class="admin-btn-sm danger" data-delete="${a.id}">删除</button>
           </div>
         </div>
       `).join('')}
@@ -251,6 +247,10 @@ function renderCreateAdminTab(user) {
         <label>新管理员密码</label>
         <input type="password" id="newAdminPwd" placeholder="输入密码 (至少6字符)" style="max-width:300px">
       </div>
+      <div class="admin-form-group">
+        <label>邮箱 (可选)</label>
+        <input type="text" id="newAdminEmail" placeholder="admin@neonblog.io" style="max-width:300px">
+      </div>
       <div class="admin-form-actions" style="justify-content:flex-start">
         <button class="admin-btn submit" id="createAdminBtn">创建管理员</button>
       </div>
@@ -264,15 +264,17 @@ function renderCreateAdminTab(user) {
   document.getElementById('createAdminBtn').addEventListener('click', async () => {
     const username = document.getElementById('newAdminName').value.trim();
     const password = document.getElementById('newAdminPwd').value.trim();
+    const email = document.getElementById('newAdminEmail').value.trim();
     if (!username || !password) {
       showToast('用户名和密码不能为空', 'warn');
       return;
     }
     try {
-      const result = await api.createAdmin(username, password);
+      const result = await api.createAdmin(username, password, email);
       showToast(result.message, 'info');
       document.getElementById('newAdminName').value = '';
       document.getElementById('newAdminPwd').value = '';
+      document.getElementById('newAdminEmail').value = '';
       // Refresh admin list
       loadAdminList();
     } catch (err) {
@@ -293,6 +295,7 @@ function renderCreateAdminTab(user) {
           <span class="user-role-badge ${u.role === 'superadmin' ? 'role-admin' : 'role-vip'}" style="margin-left:8px;display:inline-block;position:static">
             ${u.role === 'superadmin' ? 'L1 超级管理员' : 'L2 管理员'}
           </span>
+          ${u.email ? `<span style="color:var(--text-dim);margin-left:8px;font-size:0.72rem;">${u.email}</span>` : ''}
           <span style="color:var(--text-dim);margin-left:8px;font-size:0.7rem;">${u.created_at}</span>
         </div>
       `).join('') || '<span style="color:var(--text-dim)">暂无其他管理员</span>';
@@ -316,7 +319,7 @@ function openArticleForm(id = null) {
 
   overlay.innerHTML = `
     <div class="admin-form">
-      <h3>${isEdit ? 'EDIT_ARTICLE' : 'NEW_ARTICLE'} //</h3>
+      <h3>${isEdit ? '编辑文章' : '新建文章'}</h3>
       <div class="admin-form-group">
         <label>标题</label>
         <input type="text" id="afTitle" value="${isEdit ? escapeAttr(editingArticle.title) : ''}" placeholder="输入文章标题">
@@ -326,8 +329,16 @@ function openArticleForm(id = null) {
         <textarea id="afExcerpt" rows="2" placeholder="输入摘要">${isEdit ? escapeHtml(editingArticle.excerpt) : ''}</textarea>
       </div>
       <div class="admin-form-group">
-        <label>正文 (HTML)</label>
-        <textarea id="afContent" rows="10" placeholder="输入正文HTML">${isEdit ? editingArticle.content : ''}</textarea>
+        <label>封面图 URL</label>
+        <input type="text" id="afCover" value="${isEdit ? (editingArticle.cover || '') : ''}" placeholder="图片URL 或点击上传">
+        <input type="file" id="afCoverFile" accept="image/*" style="margin-top:6px;font-size:0.78rem;color:var(--text-secondary);">
+        <span id="coverUploadHint" style="display:none;font-family:var(--font-mono);font-size:0.7rem;color:var(--neon-magenta);margin-left:6px;"></span>
+      </div>
+      <div class="admin-form-group">
+        <label>正文 (Markdown)</label>
+        <textarea id="afContentMd" rows="12" placeholder="支持 Markdown 语法，如 # 标题、**加粗**、\`代码\`">${isEdit ? (editingArticle.content_md || '') : ''}</textarea>
+        <button type="button" class="admin-btn-sm" id="mdPreviewBtn" style="margin-top:6px;">👁 预览</button>
+        <div id="mdPreview" style="display:none;margin-top:8px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid rgba(0,255,255,0.2);border-radius:4px;max-height:400px;overflow-y:auto;color:var(--text-primary);font-size:0.9rem;line-height:1.7;"></div>
       </div>
       <div class="admin-form-group">
         <label>标签 (逗号分隔)</label>
@@ -354,8 +365,8 @@ function openArticleForm(id = null) {
       </div>
       ${isEdit ? `<div class="admin-form-group"><label>状态</label><div style="font-family:var(--font-mono);color:${editingArticle.status==='approved'?'var(--neon-green)':'var(--neon-yellow)'};padding:10px 0">● ${editingArticle.status === 'approved' ? '已审核通过' : '待审核'}</div></div>` : ''}
       <div class="admin-form-actions">
-        <button class="admin-btn" id="afCancel">CANCEL</button>
-        <button class="admin-btn submit" id="afSave">${isEdit ? 'UPDATE' : 'CREATE'}</button>
+        <button class="admin-btn" id="afCancel">取消</button>
+        <button class="admin-btn submit" id="afSave">${isEdit ? '更新' : '创建'}</button>
       </div>
     </div>
   `;
@@ -365,12 +376,53 @@ function openArticleForm(id = null) {
   document.getElementById('afCancel').addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
+  // Markdown preview
+  const mdPreviewBtn = document.getElementById('mdPreviewBtn');
+  const mdPreview = document.getElementById('mdPreview');
+  const mdTextarea = document.getElementById('afContentMd');
+  mdPreviewBtn.addEventListener('click', async () => {
+    if (mdPreview.style.display === 'block') {
+      mdPreview.style.display = 'none';
+      mdPreviewBtn.textContent = '👁 预览';
+      return;
+    }
+    const md = mdTextarea.value.trim();
+    if (!md) { mdPreview.innerHTML = '<span style="color:var(--text-dim)">无内容</span>'; mdPreview.style.display = 'block'; mdPreviewBtn.textContent = '✏ 编辑'; return; }
+    // Use marked if loaded, otherwise show raw
+    if (typeof marked !== 'undefined' && marked.parse) {
+      mdPreview.innerHTML = marked.parse(md);
+    } else {
+      mdPreview.innerHTML = `<pre style="white-space:pre-wrap;font-family:var(--font-mono);">${escapeHtml(md)}</pre>`;
+    }
+    mdPreview.style.display = 'block';
+    mdPreviewBtn.textContent = '✏ 编辑';
+  });
+
+  // Cover image upload
+  const coverFileInput = document.getElementById('afCoverFile');
+  const coverHint = document.getElementById('coverUploadHint');
+  coverFileInput.addEventListener('change', async () => {
+    const file = coverFileInput.files[0];
+    if (!file) return;
+    coverHint.style.display = 'inline';
+    coverHint.textContent = '上传中...';
+    try {
+      const result = await api.uploadFile(file);
+      document.getElementById('afCover').value = result.url;
+      coverHint.textContent = '✓ 上传成功';
+      coverHint.style.color = 'var(--neon-green)';
+    } catch (err) {
+      coverHint.textContent = '上传失败: ' + err.message;
+      coverHint.style.color = '#ff4444';
+    }
+  });
+
   document.getElementById('afSave').addEventListener('click', async () => {
     const title = document.getElementById('afTitle').value.trim();
     const excerpt = document.getElementById('afExcerpt').value.trim();
-    const content = document.getElementById('afContent').value.trim();
+    const content_md = document.getElementById('afContentMd').value.trim();
 
-    if (!title || !excerpt || !content) {
+    if (!title || !excerpt || !content_md) {
       showToast('标题、摘要、正文不能为空', 'warn');
       return;
     }
@@ -378,7 +430,8 @@ function openArticleForm(id = null) {
     const data = {
       title,
       excerpt,
-      content,
+      content_md,
+      cover: document.getElementById('afCover').value.trim() || undefined,
       tags: document.getElementById('afTags').value.split(',').map(t => t.trim()).filter(Boolean),
       date: document.getElementById('afDate').value,
       read_time: document.getElementById('afReadTime').value.trim(),
@@ -409,132 +462,6 @@ async function deleteArticleItem(id) {
     await api.deleteArticle(id);
     showToast('文章已删除', 'info');
     articlesData = await api.getArticles();
-    renderAdminLayout(currentUser);
-  } catch (err) {
-    showToast('删除失败: ' + err.message, 'error');
-  }
-}
-
-// ============ Projects ============
-
-function renderProjectList() {
-  const panel = document.getElementById('adminPanel');
-  panel.innerHTML = `
-    <div class="admin-panel-header">
-      <span class="admin-panel-title">项目列表 (${projectsData.length})</span>
-      <button class="admin-btn" id="addProjectBtn">+ 新建项目</button>
-    </div>
-    <div class="admin-list" id="adminList">
-      ${projectsData.length === 0 ? renderEmpty('暂无项目') : projectsData.map(p => `
-        <div class="admin-list-item">
-          <div class="admin-list-icon">${p.icon || '⬡'}</div>
-          <div class="admin-list-info">
-            <div class="admin-list-name">${escapeHtml(p.name)}</div>
-            <div class="admin-list-meta">${(p.tech||[]).join(', ')}</div>
-          </div>
-          <div class="admin-list-actions">
-            <button class="admin-btn-sm" data-edit="${p.id}">EDIT</button>
-            <button class="admin-btn-sm danger" data-delete="${p.id}">DEL</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-
-  document.getElementById('addProjectBtn').addEventListener('click', () => openProjectForm());
-  panel.querySelectorAll('[data-edit]').forEach(btn => {
-    btn.addEventListener('click', () => openProjectForm(parseInt(btn.dataset.edit)));
-  });
-  panel.querySelectorAll('[data-delete]').forEach(btn => {
-    btn.addEventListener('click', () => deleteProjectItem(parseInt(btn.dataset.delete)));
-  });
-}
-
-function openProjectForm(id = null) {
-  editingProject = id ? projectsData.find(p => p.id === id) : null;
-  const isEdit = !!editingProject;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'admin-form-overlay';
-  overlay.id = 'projectFormOverlay';
-
-  const tech = editingProject ? (editingProject.tech || []).join(', ') : '';
-
-  overlay.innerHTML = `
-    <div class="admin-form">
-      <h3>${isEdit ? 'EDIT_PROJECT' : 'NEW_PROJECT'} //</h3>
-      <div class="admin-form-group">
-        <label>项目名称</label>
-        <input type="text" id="pfName" value="${isEdit ? escapeAttr(editingProject.name) : ''}" placeholder="输入项目名称">
-      </div>
-      <div class="admin-form-group">
-        <label>描述</label>
-        <textarea id="pfDesc" rows="3" placeholder="输入项目描述">${isEdit ? escapeHtml(editingProject.description) : ''}</textarea>
-      </div>
-      <div class="admin-form-group">
-        <label>技术栈 (逗号分隔)</label>
-        <input type="text" id="pfTech" value="${tech}" placeholder="如: Rust, Tokio, Redis">
-      </div>
-      <div class="admin-form-group">
-        <label>图标 (Emoji)</label>
-        <input type="text" id="pfIcon" value="${isEdit ? editingProject.icon : '⬡'}" placeholder="如: ⚙">
-      </div>
-      <div class="admin-form-group">
-        <label>链接</label>
-        <input type="text" id="pfLink" value="${isEdit ? (editingProject.link || '#') : '#'}" placeholder="如: https://github.com/...">
-      </div>
-      <div class="admin-form-actions">
-        <button class="admin-btn" id="pfCancel">CANCEL</button>
-        <button class="admin-btn submit" id="pfSave">${isEdit ? 'UPDATE' : 'CREATE'}</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  document.getElementById('pfCancel').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-  document.getElementById('pfSave').addEventListener('click', async () => {
-    const name = document.getElementById('pfName').value.trim();
-    const description = document.getElementById('pfDesc').value.trim();
-
-    if (!name || !description) {
-      showToast('名称和描述不能为空', 'warn');
-      return;
-    }
-
-    const data = {
-      name,
-      description,
-      tech: document.getElementById('pfTech').value.split(',').map(t => t.trim()).filter(Boolean),
-      icon: document.getElementById('pfIcon').value.trim(),
-      link: document.getElementById('pfLink').value.trim(),
-    };
-
-    try {
-      if (isEdit) {
-        await api.updateProject(editingProject.id, data);
-        showToast('项目更新成功', 'info');
-      } else {
-        await api.createProject(data);
-        showToast('项目创建成功', 'info');
-      }
-      overlay.remove();
-      projectsData = await api.getProjects();
-      renderAdminLayout(currentUser);
-    } catch (err) {
-      showToast('操作失败: ' + err.message, 'error');
-    }
-  });
-}
-
-async function deleteProjectItem(id) {
-  if (!confirm(`确认删除项目 #${id}?`)) return;
-  try {
-    await api.deleteProject(id);
-    showToast('项目已删除', 'info');
-    projectsData = await api.getProjects();
     renderAdminLayout(currentUser);
   } catch (err) {
     showToast('删除失败: ' + err.message, 'error');

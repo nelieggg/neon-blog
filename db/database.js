@@ -32,6 +32,7 @@ function createSchema(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
+      email TEXT DEFAULT '',
       role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('superadmin','admin','vip','user')),
       created_at TEXT DEFAULT (datetime('now'))
     )
@@ -43,6 +44,8 @@ function createSchema(db) {
       title TEXT NOT NULL,
       excerpt TEXT NOT NULL,
       content TEXT NOT NULL,
+      content_md TEXT DEFAULT '',
+      cover TEXT DEFAULT '',
       date TEXT NOT NULL DEFAULT (date('now')),
       read_time TEXT NOT NULL DEFAULT '5 min',
       icon TEXT DEFAULT '⬡',
@@ -94,50 +97,61 @@ function createSchema(db) {
       used_at TEXT
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      article_id INTEGER NOT NULL,
+      user_id INTEGER,
+      username TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      article_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, article_id),
+      FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+    )
+  `);
 }
 
 function ensureSchema(db) {
   try { db.run('ALTER TABLE articles ADD COLUMN visibility TEXT NOT NULL DEFAULT "public"'); } catch {}
   try { db.run('ALTER TABLE articles ADD COLUMN status TEXT NOT NULL DEFAULT "approved"'); } catch {}
   try { db.run('ALTER TABLE articles ADD COLUMN author_id INTEGER'); } catch {}
+  try { db.run('ALTER TABLE articles ADD COLUMN cover TEXT DEFAULT ""'); } catch {}
+  try { db.run('ALTER TABLE articles ADD COLUMN content_md TEXT DEFAULT ""'); } catch {}
+  try { db.run('ALTER TABLE users ADD COLUMN email TEXT DEFAULT ""'); } catch {}
   try {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('superadmin','admin','vip','user')),
-        created_at TEXT DEFAULT (datetime('now'))
-      )
-    `);
+    db.run('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, email TEXT DEFAULT "", role TEXT NOT NULL DEFAULT "user" CHECK(role IN ("superadmin","admin","vip","user")), created_at TEXT DEFAULT (datetime("now")))');
   } catch {}
   try {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS invite_codes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        code TEXT NOT NULL UNIQUE,
-        created_by INTEGER,
-        used_by INTEGER,
-        is_used INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        used_at TEXT
-      )
-    `);
+    db.run('CREATE TABLE IF NOT EXISTS invite_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, created_by INTEGER, used_by INTEGER, is_used INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT (datetime("now")), used_at TEXT)');
   } catch {}
-  // Migrate existing admin role to superadmin
   try {
-    db.run("UPDATE users SET role = 'superadmin' WHERE role = 'admin'");
+    db.run('CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, article_id INTEGER NOT NULL, user_id INTEGER, username TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime("now")))');
   } catch {}
+  try {
+    db.run('CREATE TABLE IF NOT EXISTS favorites (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, article_id INTEGER NOT NULL, created_at TEXT DEFAULT (datetime("now")), UNIQUE(user_id, article_id))');
+  } catch {}
+  try { db.run("UPDATE users SET role = 'superadmin' WHERE role = 'admin'"); } catch {}
 }
 
 function seedData(db) {
   const salt = bcrypt.genSaltSync(10);
 
   // Users
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['superadmin', bcrypt.hashSync('admin123', salt), 'superadmin']);
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin2', bcrypt.hashSync('admin456', salt), 'admin']);
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['vipuser', bcrypt.hashSync('vip123', salt), 'vip']);
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['normal', bcrypt.hashSync('user123', salt), 'user']);
+  db.run('INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)', ['superadmin', bcrypt.hashSync('admin123', salt), 'superadmin', 'superadmin@neonblog.io']);
+  db.run('INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)', ['admin2', bcrypt.hashSync('admin456', salt), 'admin', 'admin2@neonblog.io']);
+  db.run('INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)', ['vipuser', bcrypt.hashSync('vip123', salt), 'vip', 'vipuser@neonblog.io']);
+  db.run('INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)', ['normal', bcrypt.hashSync('user123', salt), 'user', 'normal@neonblog.io']);
 
   // Invite codes
   db.run("INSERT INTO invite_codes (code, created_by, is_used) VALUES (?, 1, 0)", ['VIP2024-XYZ']);
@@ -162,7 +176,7 @@ H|1⟩ = (|0⟩ - |1⟩)/√2</code></pre>
 <p>类似于经典NOT门，将|0⟩翻转为|1⟩，反之亦然。</p>
 <p>掌握这些基础门是进入量子编程世界的第一步。各大云平台如IBM Q、Google Quantum AI都提供了量子计算的云服务，你可以立即上手体验。</p>`,
       date: '2087-11-15', readTime: '8 min', icon: '⚛',
-      tags: ['量子计算', '计算机科学', '前沿技术'], visibility: 'public', status: 'approved'
+      tags: ['量子计算', '计算机科学', '前沿技术'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: 'WebGPU实战：构建高性能图形引擎',
@@ -179,7 +193,7 @@ H|1⟩ = (|0⟩ - |1⟩)/√2</code></pre>
 <h2>实战：粒子系统</h2>
 <p>利用Compute Shader在GPU端计算粒子物理，每帧可处理数百万粒子的位置更新，同时保持60fps的流畅渲染。相比CPU计算方案，性能提升可达10-50倍。</p>`,
       date: '2087-10-28', readTime: '12 min', icon: '⬡',
-      tags: ['WebGPU', '图形学', '前端开发'], visibility: 'public', status: 'approved'
+      tags: ['WebGPU', '图形学', '前端开发'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: 'Rust异步运行时深度剖析：Tokio vs async-std',
@@ -202,7 +216,7 @@ async fn main() {
 <h2>如何选择</h2>
 <p>如果你在构建网络服务（HTTP、gRPC），Tokio的生态更丰富；如果你想快速将同步项目异步化，async-std的迁移成本更低。两者也可以混合使用，通过兼容层实现互操作。</p>`,
       date: '2087-10-10', readTime: '14 min', icon: '⚙',
-      tags: ['Rust', '异步编程', '后端开发'], visibility: 'public', status: 'approved'
+      tags: ['Rust', '异步编程', '后端开发'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: 'Neovim配置终极指南：打造赛博朋克编辑器',
@@ -221,7 +235,7 @@ async fn main() {
 <h2>主题美化</h2>
 <p>推荐<code>tokyonight.nvim</code>、<code>catppuccin</code>或<code>cyberdream.nvim</code>——后者完美契合赛博朋克美学，霓虹色调、半透明浮动窗口，让编码变成一种视觉享受。</p>`,
       date: '2087-09-20', readTime: '10 min', icon: '⎔',
-      tags: ['工具链', '开发效率', 'Neovim'], visibility: 'public', status: 'approved'
+      tags: ['工具链', '开发效率', 'Neovim'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: '零知识证明简明指南：ZK-SNARKs原理与应用',
@@ -238,7 +252,7 @@ async fn main() {
 <h2>应用前景</h2>
 <p>随着zkEVM和zk-rollup技术的发展，零知识证明正在从隐私工具演变为区块链扩容的核心基础设施，有望将交易吞吐量提升100倍以上。</p>`,
       date: '2087-09-05', readTime: '15 min', icon: '⧩',
-      tags: ['密码学', '区块链', '隐私计算'], visibility: 'public', status: 'approved'
+      tags: ['密码学', '区块链', '隐私计算'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: 'Docker容器网络底层原理：veth pair与bridge',
@@ -253,7 +267,7 @@ async fn main() {
 <h2>端口映射</h2>
 <p>当使用-p参数时，Docker通过iptables的DNAT规则将宿主机的端口流量转发到对应容器的IP:Port上，这一过程对容器内的应用完全透明。</p>`,
       date: '2087-08-18', readTime: '9 min', icon: '⬢',
-      tags: ['Docker', '网络', 'DevOps'], visibility: 'public', status: 'approved'
+      tags: ['Docker', '网络', 'DevOps'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: 'TypeScript 5.x 新特性全解析：装饰器与类型推导增强',
@@ -280,7 +294,7 @@ class Service {
 const cfg = readConfig({ name: "app" });</code></pre>
 <p>这些特性让TypeScript的类型系统更加精准和表达力更强，为大型项目的类型安全提供了更好的保障。</p>`,
       date: '2087-08-01', readTime: '7 min', icon: 'Ⲧ',
-      tags: ['TypeScript', '前端开发', '语言特性'], visibility: 'public', status: 'approved'
+      tags: ['TypeScript', '前端开发', '语言特性'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: 'Linux内核调度器演进：从O(n)到EEVDF',
@@ -295,7 +309,7 @@ const cfg = readConfig({ name: "app" });</code></pre>
 <h2>EEVDF (6.6+)</h2>
 <p>最早可截止时间优先（Earliest Eligible Virtual Deadline First），在CFS基础上引入截止时间概念，对延迟敏感型工作负载（如游戏、音频）有更好的调度表现。</p>`,
       date: '2087-07-15', readTime: '11 min', icon: '⬩',
-      tags: ['Linux', '操作系统', '内核'], visibility: 'public', status: 'approved'
+      tags: ['Linux', '操作系统', '内核'], visibility: 'public', status: 'approved', content_md: '', cover: ''
     },
     {
       title: '[VIP] 高级密码学：同态加密与多方安全计算',
@@ -315,7 +329,7 @@ const cfg = readConfig({ name: "app" });</code></pre>
 // 通过秘密共享 (Secret Sharing) 实现</code></pre>
 <p>这是VIP专属内容，展示了最前沿的隐私计算技术。</p>`,
       date: '2087-12-01', readTime: '18 min', icon: '🔒',
-      tags: ['密码学', '隐私计算', 'VIP'], visibility: 'vip', status: 'approved'
+      tags: ['密码学', '隐私计算', 'VIP'], visibility: 'vip', status: 'approved', content_md: '', cover: ''
     },
     {
       title: '[VIP] 高级分布式系统：Paxos与Raft共识算法深度对比',
@@ -345,7 +359,7 @@ if timeout {
 }</code></pre>
 <p>VIP专属深度技术分析，涵盖工程实践细节。</p>`,
       date: '2087-11-28', readTime: '20 min', icon: '🔒',
-      tags: ['分布式系统', '共识算法', 'VIP'], visibility: 'vip', status: 'approved'
+      tags: ['分布式系统', '共识算法', 'VIP'], visibility: 'vip', status: 'approved', content_md: '', cover: ''
     },
     // A pending article for review testing
     {
@@ -357,7 +371,7 @@ if timeout {
 <h2>Adam自适应优化</h2>
 <p>Adam结合了动量和自适应学习率，成为目前最常用的默认选择。</p>`,
       date: '2088-01-10', readTime: '6 min', icon: '🤖',
-      tags: ['深度学习', 'AI'], visibility: 'public', status: 'pending'
+      tags: ['深度学习', 'AI'], visibility: 'public', status: 'pending', content_md: '', cover: ''
     },
   ];
 
@@ -378,14 +392,14 @@ if timeout {
   insertTag.free();
 
   const insertArticle = db.prepare(
-    'INSERT INTO articles (title, excerpt, content, date, read_time, icon, visibility, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO articles (title, excerpt, content, content_md, date, read_time, icon, visibility, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
   const insertArticleTag = db.prepare(
     'INSERT INTO article_tags (article_id, tag_id) VALUES (?, ?)'
   );
 
   seedArticles.forEach(a => {
-    insertArticle.bind([a.title, a.excerpt, a.content, a.date, a.readTime, a.icon, a.visibility, a.status]);
+    insertArticle.bind([a.title, a.excerpt, a.content, a.content_md || '', a.date, a.readTime, a.icon, a.visibility, a.status]);
     insertArticle.step();
     const articleId = db.exec('SELECT last_insert_rowid()')[0].values[0][0];
     a.tags.forEach(tagName => {

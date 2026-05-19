@@ -19,16 +19,11 @@
           <span class="nav-text">首页</span>
           <span class="nav-glow"></span>
         </a>
-        <a href="#projects" class="nav-item" data-route="projects">
-          <span class="nav-icon">⬡</span>
-          <span class="nav-text">项目</span>
-          <span class="nav-glow"></span>
-        </a>
-        <a href="#about" class="nav-item" data-route="about">
-          <span class="nav-icon">◈</span>
-          <span class="nav-text">关于</span>
-          <span class="nav-glow"></span>
-        </a>
+        <a href="#write" class="nav-item" data-route="write" id="writeNav" style="display:none">
+            <span class="nav-icon">✎</span>
+            <span class="nav-text">写文章</span>
+            <span class="nav-glow"></span>
+          </a>
         <a href="#admin" class="nav-item" data-route="admin" id="adminNav" style="display:none">
           <span class="nav-icon">⚙</span>
           <span class="nav-text">管理</span>
@@ -48,6 +43,7 @@
           <div class="user-info" id="userInfo" style="display:none">
             <span class="user-role-badge" id="userRoleBadge"></span>
             <span class="user-name" id="userName"></span>
+            <a href="#profile" class="nav-item" data-route="profile" style="display:inline-flex;padding:4px 10px;font-size:0.8rem;" title="个人中心">👤</a>
             <button class="btn-neon logout-btn" id="logoutBtn" title="退出">⏏</button>
           </div>
         </div>
@@ -57,26 +53,29 @@
   </header>
 
   <div class="tag-bar" id="tagBar">
-    <span class="tag-label">FILTER://</span>
+    <span class="tag-label">筛选//</span>
     <div class="tag-list" id="tagList"></div>
   </div>
 
   <main id="mainContent" class="main-content">
     <div class="page-loading">
-      <div class="loader-text">INITIALIZING_SYSTEM<span class="cursor-blink">█</span></div>
+      <div class="loader-text">系统初始化<span class="cursor-blink">█</span></div>
     </div>
   </main>
 
   <div class="toast-container" id="toastContainer"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script type="module" src="js/api.js"></script>
   <script type="module" src="js/transition.js"></script>
   <script type="module" src="js/data.js"></script>
   <script type="module" src="js/pages/home.js"></script>
   <script type="module" src="js/pages/detail.js"></script>
-  <script type="module" src="js/pages/projects.js"></script>
   <script type="module" src="js/pages/admin.js"></script>
   <script type="module" src="js/pages/auth.js"></script>
+  <script type="module" src="js/pages/profile.js"></script>
+  <script type="module" src="js/pages/forgot.js"></script>
+  <script type="module" src="js/pages/write.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

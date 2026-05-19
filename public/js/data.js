@@ -20,16 +20,6 @@ export async function fetchArticleById(id) {
   return api.getArticle(id);
 }
 
-export async function fetchProjects() {
-  try {
-    const projects = await api.getProjects();
-    return projects;
-  } catch (err) {
-    console.error('Failed to fetch projects:', err);
-    return [];
-  }
-}
-
 export async function searchArticles(query) {
   try {
     return await api.search(query);

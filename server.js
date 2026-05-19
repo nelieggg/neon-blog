@@ -4,9 +4,10 @@ const cors = require('cors');
 const { initDb, closeDb } = require('./db/database');
 const { authMiddleware, isAdmin } = require('./middleware/auth');
 const articlesRouter = require('./routes/articles');
-const projectsRouter = require('./routes/projects');
 const authRouter = require('./routes/auth');
 const invitesRouter = require('./routes/invites');
+const verifyRouter = require('./routes/verify');
+const uploadRouter = require('./routes/upload');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,8 +19,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth', authRouter);
 app.use('/api/articles', articlesRouter);
-app.use('/api/projects', projectsRouter);
-app.use('/api/invites', invitesRouter);
+app.use('/api/verify', verifyRouter);
+app.use('/api/upload', uploadRouter);
 
 app.get('/api/tags', async (req, res) => {
   try {
@@ -76,6 +77,31 @@ async function start() {
   const db = await initDb();
   app.locals.db = db;
   app.locals.rowToArticle = rowToArticle;
+
+  // User favorites list
+  app.get('/api/user/favorites', (req, res) => {
+    try {
+      const db = req.app.locals.db;
+      if (!req.user) return res.status(401).json({ error: '请先登录' });
+      const rows = db.exec(
+        'SELECT a.* FROM articles a JOIN favorites f ON a.id = f.article_id WHERE f.user_id = ? ORDER BY f.created_at DESC',
+        [req.user.id]
+      );
+      if (!rows.length || !rows[0].values.length) return res.json([]);
+      const articles = rows[0].values.map(r => {
+        const obj = {};
+        rows[0].columns.forEach((c, i) => { obj[c] = r[i]; obj.tags = []; });
+        return obj;
+      });
+      articles.forEach(a => {
+        const tr = db.exec('SELECT t.name FROM tags t JOIN article_tags at2 ON t.id = at2.tag_id WHERE at2.article_id = ?', [a.id]);
+        a.tags = tr.length ? tr[0].values.map(v => v[0]) : [];
+      });
+      res.json(articles);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

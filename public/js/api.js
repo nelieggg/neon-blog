@@ -49,26 +49,73 @@ export const api = {
     return request('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
   },
 
-  register(username, password, role, inviteCode) {
-    return request('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password, role, inviteCode }) });
+  register(username, password, password2, email, role, inviteCode, verifyCode) {
+    return request('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password, password2, email, role, inviteCode, verifyCode }) });
   },
 
-  createAdmin(username, password) {
-    return request('/api/auth/create-admin', { method: 'POST', body: JSON.stringify({ username, password }) });
+  sendVerifyCode(email) {
+    return request('/api/verify/send-code', { method: 'POST', body: JSON.stringify({ email }) });
   },
 
-  getMe() {
-    return request('/api/auth/me');
+  // Password
+  forgotPassword(email) {
+    return request('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
   },
 
-  getUsers() {
-    return request('/api/auth/users');
+  resetPassword(token, password, password2) {
+    return request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password, password2 }) });
   },
 
-  // Articles
-  getArticles(tag) {
-    const params = tag && tag !== '全部' ? `?tag=${encodeURIComponent(tag)}` : '';
-    return request(`/api/articles${params}`);
+  changePassword(oldPassword, newPassword, newPassword2) {
+    return request('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ oldPassword, newPassword, newPassword2 }) });
+  },
+
+  updateProfile(data) {
+    return request('/api/auth/profile', { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  // Comments
+  getComments(articleId) {
+    return request(`/api/articles/${articleId}/comments`);
+  },
+  addComment(articleId, content) {
+    return request(`/api/articles/${articleId}/comments`, { method: 'POST', body: JSON.stringify({ content }) });
+  },
+  deleteComment(articleId, commentId) {
+    return request(`/api/articles/${articleId}/comments/${commentId}`, { method: 'DELETE' });
+  },
+
+  // Favorites
+  toggleFavorite(articleId) {
+    return request(`/api/articles/${articleId}/favorite`, { method: 'POST' });
+  },
+  checkFavorite(articleId) {
+    return request(`/api/articles/${articleId}/favorite`);
+  },
+  getFavorites() {
+    return request('/api/user/favorites');
+  },
+
+  // Upload
+  async uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const headers = {};
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch('/api/upload', { method: 'POST', headers, body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(err.error || 'Upload failed');
+    }
+    return res.json();
+  },
+  getArticles(tag, page, limit) {
+    const params = new URLSearchParams();
+    if (tag && tag !== '全部') params.set('tag', tag);
+    if (page) params.set('page', page);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    return request(`/api/articles${qs ? '?' + qs : ''}`);
   },
 
   getArticle(id) {
@@ -98,27 +145,6 @@ export const api = {
 
   rejectArticle(id) {
     return request(`/api/articles/review/${id}/reject`, { method: 'POST' });
-  },
-
-  // Projects
-  getProjects() {
-    return request('/api/projects');
-  },
-
-  getProject(id) {
-    return request(`/api/projects/${id}`);
-  },
-
-  createProject(data) {
-    return request('/api/projects', { method: 'POST', body: JSON.stringify(data) });
-  },
-
-  updateProject(id, data) {
-    return request(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-  },
-
-  deleteProject(id) {
-    return request(`/api/projects/${id}`, { method: 'DELETE' });
   },
 
   // Tags

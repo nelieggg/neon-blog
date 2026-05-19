@@ -3,12 +3,14 @@
     =========================== */
 
 import { triggerFlipTransition } from './transition.js';
-import { fetchArticles, fetchArticleById, fetchProjects, searchArticles, fetchTags } from './data.js';
+import { fetchArticles, fetchArticleById, searchArticles, fetchTags } from './data.js';
 import { renderHome } from './pages/home.js';
 import { renderDetail } from './pages/detail.js';
-import { renderProjects } from './pages/projects.js';
 import { showAdmin } from './pages/admin.js';
 import { renderAuth } from './pages/auth.js';
+import { renderProfile } from './pages/profile.js';
+import { renderForgotPassword, renderResetPassword } from './pages/forgot.js';
+import { renderWrite } from './pages/write.js';
 import { api, getToken, setToken } from './api.js';
 
 // ============ State ============
@@ -16,7 +18,6 @@ import { api, getToken, setToken } from './api.js';
 let currentRoute = '';
 let activeTag = '全部';
 let articlesCache = [];
-let projectsCache = [];
 let allTags = ['全部'];
 let currentUser = null;
 
@@ -33,13 +34,11 @@ async function init() {
   }
   updateUserUI();
 
-  const [articles, projects, tags] = await Promise.all([
+  const [articles, tags] = await Promise.all([
     fetchArticles(),
-    fetchProjects(),
     fetchTags(),
   ]);
   articlesCache = articles;
-  projectsCache = projects;
   allTags = tags || ['全部'];
 
   bindNavEvents();
@@ -74,13 +73,15 @@ function updateUserUI() {
     if (userInfo) userInfo.style.display = 'flex';
     if (userName) userName.textContent = currentUser.username;
     if (userRoleBadge) {
-      const labels = { superadmin: '🔧 L1', admin: '⚙ L2', vip: '💎 VIP', user: '👤 用户' };
+      const labels = { superadmin: '🔧 L1', admin: '⚙ L2', vip: '💎 会员', user: '👤 用户' };
       userRoleBadge.textContent = labels[currentUser.role] || '👤 用户';
       userRoleBadge.className = 'user-role-badge role-' + (currentUser.role === 'superadmin' ? 'admin' : currentUser.role);
     }
     if (adminNav && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) {
       adminNav.style.display = 'flex';
     }
+    const writeNav = document.getElementById('writeNav');
+    if (writeNav) writeNav.style.display = 'flex';
   } else {
     if (loginBtn) loginBtn.style.display = 'flex';
     if (userInfo) userInfo.style.display = 'none';
@@ -217,12 +218,6 @@ async function handleRoute(hash, useTransition) {
     case 'detail':
       await showDetail(route.param);
       break;
-    case 'projects':
-      await showProjects();
-      break;
-    case 'about':
-      showAbout();
-      break;
     case 'admin':
       if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) {
         showToast('仅管理员可访问管理面板', 'warn');
@@ -243,6 +238,28 @@ async function handleRoute(hash, useTransition) {
         updateUserUI();
       });
       break;
+    case 'profile':
+      if (!currentUser) {
+        showToast('请先登录', 'warn');
+        navigateTo('#login', false);
+        return;
+      }
+      renderProfile(currentUser);
+      break;
+    case 'forgot-password':
+      renderForgotPassword();
+      break;
+    case 'reset-password':
+      renderResetPassword(route.param);
+      break;
+    case 'write':
+      if (!currentUser) {
+        showToast('请先登录', 'warn');
+        navigateTo('#login', false);
+        return;
+      }
+      renderWrite(() => {});
+      break;
     case 'search':
       break;
     default:
@@ -254,40 +271,37 @@ function parseHash(hash) {
   const h = hash.replace('#', '');
   if (!h || h === 'home') return { name: 'home' };
   if (h.startsWith('detail/')) return { name: 'detail', param: h.split('/')[1] };
-  if (h === 'projects') return { name: 'projects' };
-  if (h === 'about') return { name: 'about' };
   if (h === 'admin') return { name: 'admin' };
   if (h === 'login') return { name: 'login' };
   if (h === 'register') return { name: 'register' };
+  if (h === 'profile') return { name: 'profile' };
+  if (h === 'forgot-password') return { name: 'forgot-password' };
+  if (h.startsWith('reset-password/')) return { name: 'reset-password', param: h.slice(15) };
+  if (h === 'write') return { name: 'write' };
   return { name: 'home' };
 }
 
 // ============ Page Rendering ============
 
-async function showHome() {
+async function showHome(page = 1) {
   const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-loading"><div class="loader-text">LOADING_ARTICLES<span class="cursor-blink">█</span></div></div>';
+  main.innerHTML = '<div class="page-loading"><div class="loader-text">加载文章列表<span class="cursor-blink">█</span></div></div>';
 
-  if (activeTag && activeTag !== '全部') {
-    articlesCache = await fetchArticles(activeTag);
-  } else {
-    articlesCache = await fetchArticles();
-  }
-
-  renderHome(articlesCache, activeTag, (tag) => {
+  await renderHome(activeTag, (tag) => {
     activeTag = tag;
     updateTagBarActive();
     navigateTo('#home', true);
-  }, (id) => {
-    navigateTo(`#detail/${id}`);
-  });
+  }, (id, p) => {
+    if (id) navigateTo(`#detail/${id}`);
+    else if (p) showHome(p);
+  }, page);
 
   updateTagBarActive();
 }
 
 async function showDetail(id) {
   const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-loading"><div class="loader-text">DECRYPTING_ARTICLE<span class="cursor-blink">█</span></div></div>';
+  main.innerHTML = '<div class="page-loading"><div class="loader-text">加载中<span class="cursor-blink">█</span></div></div>';
 
   try {
     const article = await fetchArticleById(id);
@@ -305,8 +319,8 @@ async function showDetail(id) {
           <div class="empty-icon">🔒</div>
           <p class="empty-text">VIP_ACCESS_REQUIRED // 该文章为VIP专属内容</p>
           <p class="empty-text" style="font-size:0.85rem;margin-top:8px">请使用VIP账号登录后查看</p>
-          <div class="back-link" style="margin-top:16px;display:inline-flex;" onclick="window.location.hash='#home'">◂ BACK_TO_ARTICLES</div>
-          <a href="#login" class="back-link" style="margin-top:8px;display:inline-flex;border-color:rgba(255,0,255,0.4);color:var(--neon-magenta);">⛊ LOGIN</a>
+          <div class="back-link" style="margin-top:16px;display:inline-flex;" onclick="window.location.hash='#home'">◂ 返回文章列表</div>
+          <a href="#login" class="back-link" style="margin-top:8px;display:inline-flex;border-color:rgba(255,0,255,0.4);color:var(--neon-magenta);">⛊ 登录</a>
         </div>
       `;
     } else {
@@ -321,93 +335,11 @@ async function showDetail(id) {
   }
 }
 
-async function showProjects() {
-  const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-loading"><div class="loader-text">LOADING_PROJECTS<span class="cursor-blink">█</span></div></div>';
-
-  projectsCache = await fetchProjects();
-  renderProjects(projectsCache, activeTag);
-  updateTagBarActive();
-}
-
-function showAbout() {
-  const main = document.getElementById('mainContent');
-  main.innerHTML = `
-    <div class="page-header">
-      <h1 class="page-title">// ABOUT_ME</h1>
-      <p class="page-subtitle">sys.info(user);</p>
-    </div>
-    <div class="about-layout">
-      <div class="about-sidebar">
-        <div class="avatar-box">⬡</div>
-        <div class="social-links">
-          <a href="#" class="social-link">↗ GITHUB // @neurodev</a>
-          <a href="#" class="social-link">↗ X.COM // @neurodev</a>
-          <a href="#" class="social-link">↗ EMAIL // dev@neonblog.io</a>
-          <a href="#" class="social-link">↗ DISCORD // neurodev#0000</a>
-        </div>
-      </div>
-      <div class="about-main">
-        <div class="about-section">
-          <div class="section-title">BIO_SCAN</div>
-          <p style="color:var(--text-secondary);line-height:1.8;">
-            全栈开发者 | 赛博空间居民 | 开源狂热者<br>
-            专注于高性能后端系统、分布式架构和前端可视化。<br>
-            热爱Rust、TypeScript和一切与计算机底层相关的事物。<br>
-            相信代码即是艺术，技术即为创造。
-          </p>
-        </div>
-        <div class="about-section">
-          <div class="section-title">SKILL_MATRIX</div>
-          ${renderSkillBars()}
-        </div>
-        <div class="about-section">
-          <div class="section-title">STATUS_LOG</div>
-          <p style="color:var(--neon-green);font-family:var(--font-mono);font-size:0.85rem;">
-            > SYSTEM_STATUS: ONLINE<br>
-            > CURRENT_PROJECT: NEON-BLOG v2.0<br>
-            > UPTIME: 8472h<br>
-            > COFFEE_LEVEL: CRITICAL
-          </p>
-        </div>
-      </div>
-    </div>
-  `;
-
-  setTimeout(() => {
-    document.querySelectorAll('.skill-fill').forEach((bar) => {
-      bar.style.width = bar.dataset.width || '0%';
-    });
-  }, 200);
-}
-
-function renderSkillBars() {
-  const skills = [
-    { name: 'Rust / C++', level: 90 },
-    { name: 'TypeScript / Node.js', level: 88 },
-    { name: 'WebGPU / Three.js', level: 80 },
-    { name: 'Docker / K8s', level: 85 },
-    { name: '分布式系统', level: 82 },
-    { name: '密码学 / 区块链', level: 70 },
-  ];
-  return skills
-    .map(
-      (s) => `
-    <div class="skill-bar">
-      <div class="skill-name"><span>${s.name}</span><span>${s.level}%</span></div>
-      <div class="skill-track">
-        <div class="skill-fill" data-width="${s.level}%" style="width:0%"></div>
-      </div>
-    </div>`
-    )
-    .join('');
-}
-
 // ============ Search ============
 
 async function performSearch(query) {
   const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-loading"><div class="loader-text">SEARCHING_DATABASE<span class="cursor-blink">█</span></div></div>';
+  main.innerHTML = '<div class="page-loading"><div class="loader-text">搜索中<span class="cursor-blink">█</span></div></div>';
 
   triggerFlipTransition(currentRoute, 'search');
 
@@ -417,8 +349,8 @@ async function performSearch(query) {
 
   let html = `
     <div class="page-header">
-      <h1 class="page-title">// SEARCH_RESULTS</h1>
-      <p class="page-subtitle">query: "${escapeHtml(query)}" → ${results.length} matches</p>
+      <h1 class="page-title">// 搜索结果</h1>
+      <p class="page-subtitle">查询: "${escapeHtml(query)}" → ${results.length} 条结果</p>
     </div>
   `;
 
@@ -442,11 +374,11 @@ async function performSearch(query) {
             </div>
           </div>
           <h3 class="card-title">${escapeHtml(article.title)}</h3>
-          <p class="card-excerpt">${article.visibility === 'vip' ? '<span class="vip-overlay-text">🔒 VIP专属内容</span>' : escapeHtml(article.excerpt)}</p>
+          <p class="card-excerpt">${article.visibility === 'vip' ? '<span class="vip-overlay-text">🔒 会员专属内容</span>' : escapeHtml(article.excerpt)}</p>
           <div class="card-tags">
             ${(article.tags || []).map((t) => `<span class="card-tag">#${escapeHtml(t)}</span>`).join('')}
           </div>
-          <div class="card-hint">> ${article.visibility === 'vip' ? 'VIP_ACCESS_REQUIRED' : 'READ_MORE'}</div>
+          <div class="card-hint">> ${article.visibility === 'vip' ? '需要会员权限' : '阅读全文'}</div>
         </div>
       `;
     });
