@@ -46,6 +46,9 @@ function createSchema(db) {
       content TEXT NOT NULL,
       content_md TEXT DEFAULT '',
       cover TEXT DEFAULT '',
+      slug TEXT DEFAULT '',
+      category TEXT DEFAULT '未分类',
+      views INTEGER DEFAULT 0,
       date TEXT NOT NULL DEFAULT (date('now')),
       read_time TEXT NOT NULL DEFAULT '5 min',
       icon TEXT DEFAULT '⬡',
@@ -120,6 +123,17 @@ function createSchema(db) {
       FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS likes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      article_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, article_id),
+      FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+    )
+  `);
 }
 
 function ensureSchema(db) {
@@ -128,6 +142,9 @@ function ensureSchema(db) {
   try { db.run('ALTER TABLE articles ADD COLUMN author_id INTEGER'); } catch {}
   try { db.run('ALTER TABLE articles ADD COLUMN cover TEXT DEFAULT ""'); } catch {}
   try { db.run('ALTER TABLE articles ADD COLUMN content_md TEXT DEFAULT ""'); } catch {}
+  try { db.run('ALTER TABLE articles ADD COLUMN slug TEXT DEFAULT ""'); } catch {}
+  try { db.run('ALTER TABLE articles ADD COLUMN category TEXT DEFAULT "未分类"'); } catch {}
+  try { db.run('ALTER TABLE articles ADD COLUMN views INTEGER DEFAULT 0'); } catch {}
   try { db.run('ALTER TABLE users ADD COLUMN email TEXT DEFAULT ""'); } catch {}
   try {
     db.run('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, email TEXT DEFAULT "", role TEXT NOT NULL DEFAULT "user" CHECK(role IN ("superadmin","admin","vip","user")), created_at TEXT DEFAULT (datetime("now")))');
@@ -140,6 +157,9 @@ function ensureSchema(db) {
   } catch {}
   try {
     db.run('CREATE TABLE IF NOT EXISTS favorites (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, article_id INTEGER NOT NULL, created_at TEXT DEFAULT (datetime("now")), UNIQUE(user_id, article_id))');
+  } catch {}
+  try {
+    db.run('CREATE TABLE IF NOT EXISTS likes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, article_id INTEGER NOT NULL, created_at TEXT DEFAULT (datetime("now")), UNIQUE(user_id, article_id))');
   } catch {}
   try { db.run("UPDATE users SET role = 'superadmin' WHERE role = 'admin'"); } catch {}
 }

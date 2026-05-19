@@ -1754,6 +1754,186 @@ body {
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
 }
 
+/* ===========================
+   DASHBOARD
+   =========================== */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 24px;
+}
+
+.dashboard-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  transition: all var(--transition-speed);
+}
+.dashboard-card:hover {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+}
+
+.dash-num {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+.dash-num.green { color: var(--neon-green); text-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+.dash-num.yellow { color: var(--neon-yellow); text-shadow: 0 0 10px rgba(255, 230, 0, 0.3); }
+
+.dash-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+/* ===========================
+   CATEGORY BAR
+   =========================== */
+
+.category-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.cat-item {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 6px 14px;
+  border: 1px solid rgba(0, 255, 255, 0.15);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-speed);
+  cursor: pointer;
+}
+.cat-item:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.1);
+}
+.cat-item.active {
+  background: rgba(0, 255, 255, 0.1);
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+/* ===========================
+   ARTICLE DETAIL LAYOUT + TOC
+   =========================== */
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 24px;
+}
+@media (max-width: 768px) { .detail-layout { grid-template-columns: 1fr; } }
+
+.toc-sidebar {
+  position: sticky;
+  top: 140px;
+  align-self: start;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 16px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.toc-title {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--neon-cyan);
+  margin-bottom: 12px;
+}
+
+.toc-item {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all var(--transition-speed);
+  cursor: pointer;
+}
+.toc-item:hover { color: var(--neon-cyan); }
+.toc-h3 { padding-left: 14px; font-size: 0.7rem; }
+
+/* ===========================
+   RELATED ARTICLES
+   =========================== */
+
+.related-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.related-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+.related-item:hover { background: rgba(0, 255, 255, 0.03); }
+
+.related-title {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.related-views {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* ===========================
+   CARD FOOTER
+   =========================== */
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.card-views {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.card-category {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--neon-magenta);
+  flex: 1;
+}
+
 .detail-actions {
   display: flex;
   gap: 10px;

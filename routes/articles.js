@@ -100,6 +100,8 @@ router.get('/:id', (req, res) => {
     if (article.status !== 'approved' && !isAdmin(req.user)) {
       return res.status(404).json({ error: 'Article not found' });
     }
+    db.run('UPDATE articles SET views = views + 1 WHERE id = ?', [req.params.id]);
+    const { saveDb } = require('../db/database'); saveDb();
     res.json(article);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -114,17 +116,11 @@ router.post('/', (req, res) => {
     if (!title || !excerpt) return res.status(400).json({ error: 'title and excerpt are required' });
     if (!content && !content_md) return res.status(400).json({ error: 'content or content_md is required' });
 
-    // Render markdown to HTML if content_md provided
-    let htmlContent = content || '';
-    let mdSource = content_md || '';
-    if (content_md && !content) {
-      try { htmlContent = marked_js.marked.parse(content_md); } catch { htmlContent = content_md; }
-    }
-
     const status = isAdmin(req.user) ? 'approved' : 'pending';
+    const articleSlug = slug || title.toLowerCase().replace(/[^\w\u4e00-\u9fff]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
     db.run(
-      'INSERT INTO articles (title, excerpt, content, content_md, cover, date, read_time, icon, visibility, status, author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [title, excerpt, htmlContent, mdSource, cover || '', date || new Date().toISOString().slice(0, 10), read_time || '5 min', icon || '⬡', visibility || 'public', status, req.user?.id || null]
+      'INSERT INTO articles (title, excerpt, content, content_md, cover, slug, category, date, read_time, icon, visibility, status, author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, excerpt, htmlContent, mdSource, cover || '', articleSlug, category || '未分类', date || new Date().toISOString().slice(0, 10), read_time || '5 min', icon || '⬡', visibility || 'public', status, req.user?.id || null]
     );
     const idRow = db.exec('SELECT last_insert_rowid()')[0];
     const articleId = idRow.values[0][0];
@@ -144,7 +140,7 @@ router.put('/:id', (req, res) => {
     const existing = getArticleWithTags(db, id);
     if (!existing) return res.status(404).json({ error: 'Article not found' });
 
-    const { title, excerpt, content, content_md, cover, date, read_time, icon, tags, visibility } = req.body;
+    const { title, excerpt, content, content_md, cover, slug, category, date, read_time, icon, tags, visibility } = req.body;
 
     let htmlContent = content || content_md || existing.content;
     let mdSource = existing.content_md || '';
@@ -154,8 +150,8 @@ router.put('/:id', (req, res) => {
     }
 
     db.run(
-      'UPDATE articles SET title=?, excerpt=?, content=?, content_md=?, cover=?, date=?, read_time=?, icon=?, visibility=?, updated_at=datetime(\'now\') WHERE id=?',
-      [title || existing.title, excerpt || existing.excerpt, htmlContent, mdSource, cover ?? existing.cover ?? '', date || existing.date, read_time || existing.read_time, icon || existing.icon, visibility || existing.visibility, id]
+      'UPDATE articles SET title=?, excerpt=?, content=?, content_md=?, cover=?, slug=?, category=?, date=?, read_time=?, icon=?, visibility=?, updated_at=datetime(\'now\') WHERE id=?',
+      [title || existing.title, excerpt || existing.excerpt, htmlContent, mdSource, cover ?? existing.cover ?? '', slug || existing.slug || '', category || existing.category || '未分类', date || existing.date, read_time || existing.read_time, icon || existing.icon, visibility || existing.visibility, id]
     );
     if (tags) saveArticleTags(db, id, tags);
     const { saveDb } = require('../db/database'); saveDb();

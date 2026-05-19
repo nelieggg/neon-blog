@@ -1,12 +1,12 @@
 /* ===========================
-    首页 - 文章列表 + 分页
+    首页 - 文章列表 + 分页 + 分类
     =========================== */
 
 import { api } from '../api.js';
 
-export async function renderHome(activeTag, onTagClick, onArticleClick, page = 1) {
+export async function renderHome(activeTag, onTagClick, onArticleClick, page = 1, activeCategory = '') {
   const main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-loading"><div class="loader-text">LOADING_ARTICLES<span class="cursor-blink">█</span></div></div>';
+  main.innerHTML = '<div class="page-loading"><div class="loader-text">加载文章列表<span class="cursor-blink">█</span></div></div>';
 
   let result;
   try {
@@ -15,21 +15,27 @@ export async function renderHome(activeTag, onTagClick, onArticleClick, page = 1
     result = { articles: [], total: 0, page: 1, totalPages: 1 };
   }
 
-  const { articles, total, page: curPage, totalPages } = result;
-  const filtered = articles;
+  let { articles, total, page: curPage, totalPages } = result;
+  if (activeCategory) articles = articles.filter(a => a.category === activeCategory);
 
+  const categories = [...new Set(articles.map(a => a.category))].filter(Boolean);
+  
   let html = `
     <div class="page-header">
       <h1 class="page-title">// 最新文章</h1>
-      <p class="page-subtitle">总计: ${total} 篇 | 第 ${curPage}/${totalPages} 页</p>
+      <p class="page-subtitle">总计: ${total} 篇 | 第 ${curPage}/${totalPages} 页${activeCategory ? ' | 分类: ' + activeCategory : ''}</p>
+    </div>
+    <div class="category-bar">
+      <a class="cat-item ${!activeCategory ? 'active' : ''}" href="#home">全部</a>
+      ${categories.map(c => `<a class="cat-item ${activeCategory === c ? 'active' : ''}" href="#${activeCategory === c ? 'home' : ''}" data-category="${c}">${c}</a>`).join('')}
     </div>
   `;
 
-  if (filtered.length === 0) {
-    html += `<div class="empty-state"><div class="empty-icon">⌕</div><p class="empty-text">NO_ENTRIES_FOUND</p></div>`;
+  if (articles.length === 0) {
+    html += `<div class="empty-state"><div class="empty-icon">⌕</div><p class="empty-text">暂无文章</p></div>`;
   } else {
     html += '<div class="articles-grid">';
-    filtered.forEach((article) => {
+    articles.forEach((article) => {
       html += `
         <div class="article-card${article.visibility === 'vip' ? ' vip-card' : ''}" data-id="${article.id}" data-action="article">
           <div class="card-header">
@@ -43,13 +49,16 @@ export async function renderHome(activeTag, onTagClick, onArticleClick, page = 1
           <h3 class="card-title">${escapeHtml(article.title)}</h3>
           <p class="card-excerpt">${article.visibility === 'vip' ? '<span class="vip-overlay-text">🔒 会员专属内容</span>' : escapeHtml(article.excerpt)}</p>
           <div class="card-tags">${(article.tags || []).map((t) => `<span class="card-tag">#${escapeHtml(t)}</span>`).join('')}</div>
-          <div class="card-hint">> ${article.visibility === 'vip' ? '需要会员权限' : '阅读全文'}</div>
+          <div class="card-footer">
+            <span class="card-views">👁 ${article.views || 0}</span>
+            <span class="card-category">📂 ${escapeHtml(article.category || '未分类')}</span>
+            <div class="card-hint">> ${article.visibility === 'vip' ? '需要会员权限' : '阅读全文'}</div>
+          </div>
         </div>
       `;
     });
     html += '</div>';
 
-    // Pagination
     if (totalPages > 1) {
       html += '<div class="pagination">';
       for (let i = 1; i <= totalPages; i++) {
@@ -61,33 +70,23 @@ export async function renderHome(activeTag, onTagClick, onArticleClick, page = 1
 
   main.innerHTML = html;
 
-  main.querySelectorAll('[data-action="article"]').forEach((card) => {
-    card.addEventListener('click', () => {
-      if (onArticleClick) onArticleClick(card.dataset.id);
-    });
+  main.querySelectorAll('[data-action="article"]').forEach(card => {
+    card.addEventListener('click', () => { if (onArticleClick) onArticleClick(card.dataset.id); });
   });
-
-  main.querySelectorAll('.card-tag').forEach((tagEl) => {
-    tagEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (onTagClick) onTagClick(tagEl.textContent.replace('#', ''));
-    });
+  main.querySelectorAll('.card-tag').forEach(tagEl => {
+    tagEl.addEventListener('click', (e) => { e.stopPropagation(); if (onTagClick) onTagClick(tagEl.textContent.replace('#', '')); });
   });
-
   main.querySelectorAll('.pagination-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = parseInt(btn.dataset.page);
-      if (onArticleClick) onArticleClick(null, p);
+    btn.addEventListener('click', () => { const p = parseInt(btn.dataset.page); if (onArticleClick) onArticleClick(null, p); });
+  });
+  main.querySelectorAll('.cat-item').forEach(cat => {
+    cat.addEventListener('click', (e) => {
+      e.preventDefault();
+      const cat = e.target.dataset.category || '';
+      if (onTagClick) onTagClick(null, null, cat);
     });
   });
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
-
-function escapeAttr(str) {
-  return (str || '').replace(/"/g, '&quot;');
-}
+function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
+function escapeAttr(str) { return (str || '').replace(/"/g, '&quot;'); }

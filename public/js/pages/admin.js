@@ -35,6 +35,7 @@ function renderAdminLayout(user) {
     </div>
     <div class="admin-layout">
       <div class="admin-sidebar">
+        <button class="admin-nav-item ${adminTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">📊 数据看板</button>
         <button class="admin-nav-item ${adminTab === 'articles' ? 'active' : ''}" data-tab="articles">⬡ 文章管理</button>
         <button class="admin-nav-item ${adminTab === 'review' ? 'active' : ''}" data-tab="review">⏳ 审核队列</button>
         <button class="admin-nav-item ${adminTab === 'invites' ? 'active' : ''}" data-tab="invites">🎫 邀请码</button>
@@ -52,11 +53,34 @@ function renderAdminLayout(user) {
   });
 
   switch (adminTab) {
+    case 'dashboard': renderDashboard(); break;
     case 'articles': renderArticleList(); break;
     case 'review': renderReviewQueue(); break;
     case 'invites': renderInvitesTab(); break;
     case 'createAdmin': renderCreateAdminTab(user); break;
   }
+}
+
+async function renderDashboard() {
+  const panel = document.getElementById('adminPanel');
+  panel.innerHTML = '<div class="admin-panel-header"><span class="admin-panel-title">数据看板</span></div><div class="page-loading"><div class="loader-text">加载中...</div></div>';
+  try {
+    const stats = await api.getDashboard();
+    panel.innerHTML = `
+      <div class="admin-panel-header"><span class="admin-panel-title">数据看板</span></div>
+      <div class="dashboard-grid">
+        <div class="dashboard-card"><div class="dash-num">${stats.totalArticles}</div><div class="dash-label">文章总数</div></div>
+        <div class="dashboard-card"><div class="dash-num green">${stats.approvedArticles}</div><div class="dash-label">已发布</div></div>
+        <div class="dashboard-card"><div class="dash-num yellow">${stats.pendingArticles}</div><div class="dash-label">待审核</div></div>
+        <div class="dashboard-card"><div class="dash-num">${stats.totalViews}</div><div class="dash-label">总阅读量</div></div>
+        <div class="dashboard-card"><div class="dash-num">${stats.todayViews}</div><div class="dash-label">今日阅读</div></div>
+        <div class="dashboard-card"><div class="dash-num">${stats.totalUsers}</div><div class="dash-label">用户数</div></div>
+        <div class="dashboard-card"><div class="dash-num">${stats.totalComments}</div><div class="dash-label">评论数</div></div>
+        <div class="dashboard-card"><div class="dash-num">${stats.totalLikes}</div><div class="dash-label">点赞数</div></div>
+        <div class="dashboard-card"><div class="dash-num">${stats.totalFavorites}</div><div class="dash-label">收藏数</div></div>
+      </div>
+    `;
+  } catch (err) { panel.innerHTML = '<div class="admin-panel-header"><span class="admin-panel-title">数据看板</span></div><p style="color:#ff4444;padding:20px;">加载失败</p>'; }
 }
 
 // ============ Articles ============
@@ -341,7 +365,9 @@ function openArticleForm(id = null) {
         <div id="mdPreview" style="display:none;margin-top:8px;padding:16px;background:rgba(0,0,0,0.2);border:1px solid rgba(0,255,255,0.2);border-radius:4px;max-height:400px;overflow-y:auto;color:var(--text-primary);font-size:0.9rem;line-height:1.7;"></div>
       </div>
       <div class="admin-form-group">
-        <label>标签 (逗号分隔)</label>
+        <label>分类</label>
+        <input type="text" id="afCategory" value="${isEdit ? (editingArticle.category || '') : ''}" placeholder="如: 技术教程、生活随笔、前端开发" style="max-width:300px">
+      </div>
         <input type="text" id="afTags" value="${tags}" placeholder="如: Rust, 前端开发, 图形学">
       </div>
       <div class="admin-form-group">
@@ -437,6 +463,7 @@ function openArticleForm(id = null) {
       read_time: document.getElementById('afReadTime').value.trim(),
       icon: document.getElementById('afIcon').value.trim(),
       visibility: document.getElementById('afVisibility').value,
+      category: document.getElementById('afCategory').value.trim() || undefined,
     };
 
     try {

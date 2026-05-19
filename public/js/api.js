@@ -96,6 +96,21 @@ export const api = {
     return request('/api/user/favorites');
   },
 
+  // Likes
+  toggleLike(slug) {
+    return request(`/article/${slug}/like`, { method: 'POST' });
+  },
+
+  // Related
+  getRelated(articleId) {
+    return request(`/api/articles/${articleId}/related`);
+  },
+
+  // Dashboard
+  getDashboard() {
+    return request('/api/dashboard');
+  },
+
   // Upload
   async uploadFile(file) {
     const formData = new FormData();
@@ -120,6 +135,10 @@ export const api = {
 
   getArticle(id) {
     return request(`/api/articles/${id}`);
+  },
+
+  getArticleBySlug(slug) {
+    return request(`/article/${slug}`);
   },
 
   createArticle(data) {

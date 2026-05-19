@@ -78,6 +78,120 @@ async function start() {
   app.locals.db = db;
   app.locals.rowToArticle = rowToArticle;
 
+  // Increment article view and return article by slug
+  app.get('/article/:slug', (req, res) => {
+    try {
+      const db = app.locals.db;
+      const rows = db.exec("SELECT * FROM articles WHERE slug = ? AND status = 'approved'", [req.params.slug]);
+      if (!rows.length || !rows[0].values.length) return res.status(404).json({ error: '文章不存在' });
+      const article = {};
+      rows[0].columns.forEach((c, i) => { article[c] = rows[0].values[0][i]; });
+      if (article.visibility === 'vip' && !(req.user && (req.user.role === 'vip' || req.user.role === 'admin' || req.user.role === 'superadmin'))) {
+        return res.status(403).json({ error: '需要VIP权限', vipOnly: true });
+      }
+      db.run('UPDATE articles SET views = views + 1 WHERE id = ?', [article.id]);
+      const tags = db.exec('SELECT t.name FROM tags t JOIN article_tags at2 ON t.id = at2.tag_id WHERE at2.article_id = ?', [article.id]);
+      article.tags = tags.length ? tags[0].values.map(r => r[0]) : [];
+      res.json(article);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Get article comments by slug
+  app.get('/article/:slug/comments', (req, res) => {
+    try {
+      const db = app.locals.db;
+      const art = db.exec('SELECT id FROM articles WHERE slug = ?', [req.params.slug]);
+      if (!art.length || !art[0].values.length) return res.json([]);
+      const rows = db.exec('SELECT * FROM comments WHERE article_id = ? ORDER BY created_at ASC', [art[0].values[0][0]]);
+      if (!rows.length || !rows[0].values.length) return res.json([]);
+      const comments = rows[0].values.map(r => {
+        const obj = {};
+        rows[0].columns.forEach((c, i) => { obj[c] = r[i]; });
+        return obj;
+      });
+      res.json(comments);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Like/Unlike article
+  app.post('/article/:slug/like', (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: '请先登录' });
+      const db = app.locals.db;
+      const art = db.exec('SELECT id FROM articles WHERE slug = ?', [req.params.slug]);
+      if (!art.length || !art[0].values.length) return res.status(404).json({ error: '文章不存在' });
+      const articleId = art[0].values[0][0];
+      const existing = db.exec('SELECT id FROM likes WHERE user_id = ? AND article_id = ?', [req.user.id, articleId]);
+      if (existing.length && existing[0].values.length) {
+        db.run('DELETE FROM likes WHERE user_id = ? AND article_id = ?', [req.user.id, articleId]);
+      } else {
+        db.run('INSERT INTO likes (user_id, article_id) VALUES (?, ?)', [req.user.id, articleId]);
+      }
+      const { saveDb } = require('./db/database'); saveDb();
+      const likeCount = db.exec('SELECT COUNT(*) FROM likes WHERE article_id = ?', [articleId]);
+      const count = likeCount.length && likeCount[0].values.length ? likeCount[0].values[0][0] : 0;
+      res.json({ liked: !(existing.length && existing[0].values.length), likes: count });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Get related articles
+  app.get('/api/articles/:id/related', (req, res) => {
+    try {
+      const db = app.locals.db;
+      const tags = db.exec('SELECT t.name FROM tags t JOIN article_tags at2 ON t.id = at2.tag_id WHERE at2.article_id = ?', [req.params.id]);
+      const tagNames = tags.length ? tags[0].values.map(r => r[0]) : [];
+      if (!tagNames.length) return res.json([]);
+      const placeholders = tagNames.map(() => '?').join(',');
+      const rows = db.exec(
+        `SELECT DISTINCT a.* FROM articles a JOIN article_tags at2 ON a.id = at2.article_id JOIN tags t ON at2.tag_id = t.id
+         WHERE t.name IN (${placeholders}) AND a.id != ? AND a.status = 'approved'
+         ORDER BY a.id DESC LIMIT 4`,
+        [...tagNames, parseInt(req.params.id)]
+      );
+      if (!rows.length || !rows[0].values.length) return res.json([]);
+      const articles = rows[0].values.map(r => { const o = {}; rows[0].columns.forEach((c, i) => { o[c] = r[i]; o.tags = []; }); return o; });
+      articles.forEach(a => { const tr = db.exec('SELECT t.name FROM tags t JOIN article_tags at2 ON t.id = at2.tag_id WHERE at2.article_id = ?', [a.id]); a.tags = tr.length ? tr[0].values.map(v => v[0]) : []; });
+      res.json(articles);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // RSS Feed
+  app.get('/api/rss', (req, res) => {
+    try {
+      const db = app.locals.db;
+      const rows = db.exec("SELECT * FROM articles WHERE status = 'approved' AND visibility = 'public' ORDER BY id DESC LIMIT 20");
+      const articles = [];
+      if (rows.length && rows[0].values.length) {
+        const cols = rows[0].columns;
+        rows[0].values.forEach(r => { const o = {}; cols.forEach((c, i) => { o[c] = r[i]; }); articles.push(o); });
+      }
+      const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>NEON_BLOG // 中文博客</title><link>http://localhost:3000</link><description>赛博朋克风格中文博客</description>
+${articles.map(a => `<item><title>${a.title}</title><link>http://localhost:3000/#/article/${a.slug || a.id}</link><description>${a.excerpt}</description><pubDate>${a.date}</pubDate></item>`).join('\n')}
+</channel></rss>`;
+      res.type('application/xml');
+      res.send(rss);
+    } catch (err) { res.status(500).send('Error'); }
+  });
+
+  // Dashboard stats
+  app.get('/api/dashboard', (req, res) => {
+    try {
+      const db = app.locals.db;
+      const totalArticles = db.exec('SELECT COUNT(*) FROM articles')[0].values[0][0];
+      const approvedArticles = db.exec("SELECT COUNT(*) FROM articles WHERE status = 'approved'")[0].values[0][0];
+      const pendingArticles = db.exec("SELECT COUNT(*) FROM articles WHERE status = 'pending'")[0].values[0][0];
+      const totalViews = db.exec('SELECT COALESCE(SUM(views), 0) FROM articles')[0].values[0][0];
+      const totalUsers = db.exec('SELECT COUNT(*) FROM users')[0].values[0][0];
+      const totalComments = db.exec('SELECT COUNT(*) FROM comments')[0].values[0][0];
+      const totalLikes = db.exec('SELECT COUNT(*) FROM likes')[0].values[0][0];
+      const totalFavorites = db.exec('SELECT COUNT(*) FROM favorites')[0].values[0][0];
+      const today = new Date().toISOString().slice(0, 10);
+      const todayViews = db.exec("SELECT COALESCE(SUM(views), 0) FROM articles WHERE date = ?", [today])[0].values[0][0];
+      res.json({ totalArticles, approvedArticles, pendingArticles, totalViews, totalUsers, totalComments, totalLikes, totalFavorites, todayViews });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // User favorites list
   app.get('/api/user/favorites', (req, res) => {
     try {

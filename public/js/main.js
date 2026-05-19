@@ -5,7 +5,7 @@
 import { triggerFlipTransition } from './transition.js';
 import { fetchArticles, fetchArticleById, searchArticles, fetchTags } from './data.js';
 import { renderHome } from './pages/home.js';
-import { renderDetail } from './pages/detail.js';
+import { renderDetail, renderDetailBySlug } from './pages/detail.js';
 import { showAdmin } from './pages/admin.js';
 import { renderAuth } from './pages/auth.js';
 import { renderProfile } from './pages/profile.js';
@@ -283,18 +283,22 @@ function parseHash(hash) {
 
 // ============ Page Rendering ============
 
-async function showHome(page = 1) {
+async function showHome(page = 1, category = '') {
   const main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-loading"><div class="loader-text">加载文章列表<span class="cursor-blink">█</span></div></div>';
 
-  await renderHome(activeTag, (tag) => {
+  await renderHome(activeTag, (tag, unused, cat) => {
+    if (cat !== undefined) {
+      showHome(1, cat);
+      return;
+    }
     activeTag = tag;
     updateTagBarActive();
     navigateTo('#home', true);
   }, (id, p) => {
     if (id) navigateTo(`#detail/${id}`);
     else if (p) showHome(p);
-  }, page);
+  }, page, category);
 
   updateTagBarActive();
 }
